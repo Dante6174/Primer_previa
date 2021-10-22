@@ -31,17 +31,13 @@ with open('atributo.csv', 'r') as File:
 
 relaciones = []
 with open('relacion.csv', 'r') as File:
-	fieldnames = ['ID_RELATION', 'ID_OBJECT', 'ID_ATTRIB']
+	fieldnames = ['ID_OBJECT', 'ID_ATTRIB']
 	reader = csv.DictReader(File, fieldnames= fieldnames, delimiter=';')
 	for row in reader:
 		relaciones.append(row)
+		
 
 
-###-----------------------------------------------------------------###
-relations_copy = relaciones
-attribs_copy = atributos
-
-###-----------------------------------------------------------------###
 
 ##-------------------------La agenda comienza "vacía" ----------------------------#
 Agenda = []
@@ -59,18 +55,19 @@ def schedule_init(objetos,  relaciones, category):
 			Agenda.append(candidate)
 			 
 
-##--- La agenda puede guardar los ID's de los objetos como keys y la puntuacion como values
-
-def make_category(relaciones, attribs_copy):
+###--------------------------Devuelve una categoría que esté relacionada al candidato-----------------------###
+def make_category(relaciones, atributos, last_category):
 	new = {'ID_ATTRIB': '', 'NAME': ''}
 	candidate = Agenda[0]
-	for relation in relaciones:
-		if (relation != relaciones[0] and relation.get('ID_OBJECT') == candidate.get('ID_OBJECT') ):
-			for attrib in atributos:
-				if (relation.get('ID_ATTRIB') == attrib.get('ID_ATTRIB')):
-					new = {'ID_ATTRIB': relation.get('ID_ATTRIB'), 'NAME': attrib.get('NAME')}
-					return new
-					
+	id_object = candidate.get('ID_OBJECT')
+	for attrib in atributos:
+		if(attrib.get('ID_ATTRIB') != last_category.get('ID_ATTRIB')):
+			candidate_rel = {'ID_OBJECT': id_object, 'ID_ATTRIB': attrib.get('ID_ATTRIB')}
+			if(candidate_rel in relaciones):
+				new['ID_ATTRIB'] = attrib.get('ID_ATTRIB')
+				new['NAME'] =attrib.get('NAME')
+				return new
+		
 
 	return new
 
@@ -89,63 +86,62 @@ def put_in_top(object):
 ### ----Aumenta en 1 el 'VALUE' de los objetos candidatos en la agenda, si estos tienen en la tabla relaciones el atributo 'category'
 def check_schedule(relaciones, category):
 	for object in Agenda:
-		for relation in relaciones:
-			if (relation != relaciones[0] and relation.get('ID_OBJECT') == object.get('ID_OBJECT')):
-				if(relation.get('ID_ATTRIB') == category.get('ID_ATTRIB')):
-					put_in_top(object)    #pone el objeto en el primer lugar de la Agenda
-					break
+		id_object = object.get('ID_OBJECT')
+		id_attrib = category.get('ID_ATTRIB')
+		candidate = {'ID_OBJECT': id_object, 'ID_ATTRIB': id_attrib}
+		if(candidate in relaciones):
+			put_in_top(object)    #pone el objeto en el primer lugar de la Agenda
 
 
 #----------------- Si la agenda está vacía, entonces, se inicializa ---------------#
-def agenda(objetos, attribs_copy, relaciones, category):
+def agenda(objetos, atributos, relaciones, category, last_category):
 	new_category = {'ID_ATTRIB': '', 'NAME': ''}
 	if (len(Agenda) == 0):
 		schedule_init(objetos, relaciones, category) #inicializa laa agenda 
-		new_category = make_category(relaciones, attribs_copy)
-
-	else:	
-		new_category = make_category(relaciones, attribs_copy)
-		
+	
+	new_category = make_category(relaciones, atributos, last_category)		
 	return new_category
 
 ##---------------------------------------------------------------------##
 def Random_category():
-	rand_index = random.randint(1, len(attribs_copy) - 1)
+	rand_index = random.randint(1, len(atributos) - 1)
 	return rand_index
 
 
 ##---------Se elimina una categoría si ésta ya se usó------ ##
 
-def  delete_category(category, attribs_copy):
-	if(category in attribs_copy):
-		del_index = attribs_copy.index(category)
-		del(attribs_copy[del_index])
+def  delete_category(category, atributos):
+	if(category in atributos):
+		del_index = atributos.index(category)
+		del(atributos[del_index])
 
 ##---------Se eliminan los objetos dependiendo si tienen o no alguna categoría relacionada -------##
-def delete_in_agenda(relaciones, category, user_input):
+def fix_agenda(relaciones, category, user_input):
 	if (user_input == 'N' or user_input == 'n'):
-		delete_category(category, attribs_copy)
+		delete_category(category, atributos)
 		for object in Agenda:
-			for relation in relaciones:
-				if (relation != relaciones[0] and object.get('ID_OBJECT') == relation.get('ID_OBJECT')):
-					if (relation.get('ID_ATTRIB') == category.get('ID_ATTRIB')):
-						index = Agenda.index(object)
-						del(Agenda[index])
-						break
+			id_object = object.get('ID_OBJECT')
+			id_attrib = category.get('ID_ATTRIB')
+			candidate = {'ID_OBJECT': id_object, 'ID_ATTRIB': id_attrib}
+			if(candidate in relaciones):			
+				index = Agenda.index(object)
+				del(Agenda[index])
 
 	else:
-		boolean = 0
 		if(user_input == 'S' or user_input == 's'):
+			check_schedule(relaciones, category)
+			delete_category(category, atributos)
 			for object in Agenda:
-				for relation in relaciones:
-					if(relation != relaciones[0] and  object.get('ID_OBJECT') == relation.get('ID_OBJECT')):
-						if (relation.get('ID_ATTRIB') == category.get('ID_ATTRIB')):
-							bolean = 1 
-							break
-				if (boolean == 0):
+				id_object = object.get('ID_OBJECT')
+				id_attrib = category.get('ID_ATTRIB')
+				candidate = {'ID_OBJECT': id_object, 'ID_ATTRIB': id_attrib}
+				if(candidate in relaciones):
+					pass
+				else:
 					index = Agenda.index(object)
-					del(Agenda[index])	
+					del(Agenda[index])
 
+				
 
 ###------------------------Se busca el animal al que corresponde el ID -------------##
 
@@ -156,10 +152,10 @@ def show_answer(objetos):
 
 #////////////////////7//-----------FUNCION PRINCIPAL-----------////////////////////////# 
 
-def interface(objetos, attribs_copy, relaciones):
+def interface(objetos, atributos, relaciones):
 
 	random_index = Random_category()
-	category = { 'ID_ATTRIB': attribs_copy[random_index].get('ID_ATTRIB'),	'NAME' : attribs_copy[random_index].get('NAME') }
+	category = { 'ID_ATTRIB': atributos[random_index].get('ID_ATTRIB'),	'NAME' : atributos[random_index].get('NAME') }
 	category_name = category.get('NAME')
 	adivinado = 0
 
@@ -167,30 +163,29 @@ def interface(objetos, attribs_copy, relaciones):
 	user_input = input(" 'S' para Sí 'N' para no: ")
 	if (user_input == 'S' or user_input == 's'):
 
-		delete_category(category, attribs_copy)
+		delete_category(category, atributos)
 		while (adivinado == 0 or len(Agenda) == 0):
-			category = agenda(objetos, attribs_copy, relaciones, category) ## agenda escoge categoría
+			last_category = category
+			category = agenda(objetos, atributos, relaciones, category, last_category) ## agenda escoge categoría
 			category_name = category.get('NAME')
-			if(category_name != ''):
-				print('Es {0}?'.format(category_name))
+			if (category_name != ''):
+				print('Es {}?: '.format(category_name))
 				user_input = input(" 'S' para Sí 'N' para no: ")
-			if(user_input == 's' or user_input =='S' or category_name == ''):
-				check_schedule(relaciones, category)
-				delete_category(category, attribs_copy)
-				if (len(Agenda) == 2 ):
-					if (Agenda[0].get('VALUE') > Agenda[1].get('VALUE')):
-						respuesta = show_answer(objetos)
-						print('Es {0}'.format(respuesta))
-						adivinado = 1
+				fix_agenda(relaciones, category, user_input)
+			else:
+				respuesta = show_answer(objetos)
+				print('ES {}'.format(respuesta))
+				adivinado = 1
 
-			delete_in_agenda(relaciones, category, user_input)
+
 	else:
-		delete_category(category, attribs_copy)
-		interface(objetos, attribs_copy, relaciones)	
+		delete_category(category, atributos)
+		interface(objetos, atributos, relaciones)	
 
 
 
 
-interface(objetos, attribs_copy, relaciones)
+
+interface(objetos, atributos, relaciones)
 
 
